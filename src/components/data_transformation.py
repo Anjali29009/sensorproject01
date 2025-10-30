@@ -29,66 +29,74 @@ class DataTransformation:
 
         self.data_transformation_config = DataTransformationConfig()
 
-        self.utils=MainUtils()
+        self.utils = MainUtils()
 
     @staticmethod
-    def get_data(feature_store_file_path: str)->pd.DataFrame:
-
-          try:
-
-               data=pd.read_csv(feature_store_file_path)
-
-               data.rename(columns={'Good/Bad':TARGET_COLUMN},inplace=True)
-
-               return data
-          except Exception as e:
-               raise CustomException(e,sys)
-    
+    def get_data(feature_store_file_path: str) ->pd.DataFrame:
+     
+     try:
+            print("🔍 DEBUG: Attempting to read CSV file from path:", feature_store_file_path)
+            import os
+            if not os.path.exists(feature_store_file_path):
+                raise FileNotFoundError(f"❌ File not found at path: {feature_store_file_path}")
+            
+            file_size = os.path.getsize(feature_store_file_path)
+            print(f"📏 DEBUG: File size = {file_size} bytes")
+            if file_size == 0:
+                raise ValueError("❌ The CSV file is empty!")
+            
+            data = pd.read_csv(feature_store_file_path)
+            print("✅ DEBUG: Successfully read CSV. Shape =", data.shape)
+            
+            data.rename(columns={'Good/Bad': TARGET_COLUMN}, inplace=True)
+            return data
+     except Exception as e:
+         raise CustomException(e,sys)
+        
     def get_data_transformer_object(self):
-         
-         try:
-              
-              imputer_step=('imputer',SimpleImputer(strategy='constant',fill_value=0))
-              scaler_step = ('scaler',RobustScaler())
 
-              preprocessor=Pipeline(
-                   steps=[
-                        imputer_step,
-                        scaler_step
-                   ]
-              )
+        try:
 
-              return preprocessor
-         except Exception as e:
-              raise CustomException(e,sys)
-         
+            imputer_step = ('imputer',SimpleImputer(strategy='constant', fill_value=0))
+            scaler_step = ('scaler',RobustScaler())
+
+            preprocessor = Pipeline(
+                steps=[
+                    imputer_step,
+                    scaler_step
+                ]
+            )
+
+            return preprocessor
+        except Exception as e:
+            raise CustomException(e,sys)
+    
     def initiate_data_transformation(self):
 
-         logging.info("Entered initiate data transformation method of data transformation class")
+        logging.info("Entered initiate data transformation method of data transfomration class")
 
-         try:
-              dataframe=self.get_data(feature_store_file_path=self.feature_store_file_path)
+        try:
+            dataframe = self.get_data(feature_store_file_path=self.feature_store_file_path)
 
-              x=dataframe.drop(columns=TARGET_COLUMN)
-              y=np.where(dataframe[TARGET_COLUMN]==-1,0,1)
+            X=dataframe.drop(columns= TARGET_COLUMN)
+            y= np.where(dataframe[TARGET_COLUMN]==-1,0,1)
 
-              x_train,x_test,y_train,y_test = train_test_split(x,y,test_size=0.2)
+            X_train,X_test,y_train,y_test = train_test_split(X,y,test_size=0.2)
 
-              preprocessor = self.get_data_transformer_object()
+            preprocessor = self.get_data_transformer_object()
 
-              x_train_scaled=preprocessor.fit_transform(x_train)
-              x_test_scaled=preprocessor.transform(x_test)
+            X_train_scaled = preprocessor.fit_transform(X_train)
+            X_test_scaled = preprocessor.transform(X_test)
 
-              preprocessor_path = self.data_transformation_config.transformation_object_file_path
-              os.makedirs(os.path.dirname(preprocessor_path),exist_ok=True)
+            preprocessor_path = self.data_transformation_config.transformed_object_file_path
+            os.makedirs(os.path.dirname(preprocessor_path), exist_ok=True)
 
-              self.utils.save_object(file_path=preprocessor_path, obj=preprocessor)
+            self.utils.save_object(file_path= preprocessor_path, obj= preprocessor)
 
-              train_arr = np.c[x_train_scaled,np.array(y_train)]
-              test_arr = np.c[x_test_scaled,np.array(y_test)]
+            train_arr = np.c_[X_train_scaled, np.array(y_train)]
+            test_arr = np.c_[X_test_scaled, np.array(y_test)]
 
-              return(train_arr,test_arr,preprocessor_path)
-         except Exception as e:
-              raise CustomException(e,sys) from e
-
-
+            return (train_arr,test_arr,preprocessor_path)
+        
+        except Exception as e:
+            raise CustomException(e,sys) from e
